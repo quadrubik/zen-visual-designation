@@ -1,0 +1,25 @@
+# mavros vers le Pixhawk, sur la Jetson. `make mavros` à la main, mavros.service au boot.
+# Le port série du Pixhawk est FCU_DEVICE, dans .env (voir .env.example), /dev/ttyTHS1 par défaut.
+services:
+  mavros:
+    build:
+      context: ..
+      dockerfile: docker/dockerfile.mavros
+    image: aeac/mavros
+    container_name: aeac-mavros
+    network_mode: host
+    privileged: true
+    group_add:
+      - dialout
+    volumes:
+      - /dev:/dev
+      - ../config/mavros.yaml:/config/mavros.yaml:ro
+    environment:
+      - ROS_DOMAIN_ID=2
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+      - ROS_LOCALHOST_ONLY=1
+    command: >
+      bash -lc "source /opt/ros/humble/setup.bash &&
+        ros2 launch mavros apm.launch fcu_url:=serial://${FCU_DEVICE:-/dev/ttyTHS1}:921600 fcu_protocol:=v2.0
+        config_yaml:=/config/mavros.yaml"

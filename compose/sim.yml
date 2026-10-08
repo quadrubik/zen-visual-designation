@@ -1,0 +1,23 @@
+# mavros vers le SITL, pour la simulation sur le poste WSL : `make sim C=<mission>`.
+# 1. La source de la simulation se choisit avec SITL= dans le Makefile : Mission Planner (le défaut,
+#    formation 1), Gazebo, ou une URL mavros. Le Makefile en tire FCU_URL et SIM_TIME.
+# 2. `make sim` démarre ce service avec le conteneur dev (compose/dev.yml), puis lance dans dev le
+#    launch file de la mission, le même qu'en vol, avec sim:=true (les nodes qui touchent au matériel
+#    lisent ce paramètre) et site:=$SITE (config/sites/<site>.yaml, sim par défaut : make sim C=demo SITE=cimetiere).
+# 3. Les mocks se lancent à la main dans un second terminal : make rc, make takeoff
+#    (rc_simulator lit le clavier, donc il garde son terminal).
+# Ses logs : make logs IMG=mavros-sim
+services:
+  mavros-sim:
+    build:
+      context: ..
+      dockerfile: docker/dockerfile.mavros
+    image: aeac/mavros
+    container_name: aeac-mavros-sim
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=${SIM_DOMAIN:-3}
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    command: >
+      bash -lc "source /opt/ros/humble/setup.bash &&
+        ros2 launch mavros apm.launch fcu_url:=${FCU_URL:-tcp://127.0.0.1:5762} fcu_protocol:=v2.0 use_sim_time:=${SIM_TIME:-false}"

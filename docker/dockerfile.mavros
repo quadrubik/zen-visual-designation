@@ -1,0 +1,29 @@
+# Image du service mavros (compose/mavros.yml sur la Jetson, mavros-sim dans compose/sim.yml).
+# Ce qui diffère des autres : rien de plus que mavros. Pas de colcon, pas de Python maison :
+# ce conteneur ne construit rien, il fait tourner mavros et c'est tout.
+ARG ROS_DISTRO=humble
+FROM ros:${ROS_DISTRO}-ros-base
+
+ARG ROS_DISTRO
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# PIN TEMPORAIRE (septembre 2026), comme dans la formation 3 : les binaires ros-humble-mavros 2.15.1
+# ont échoué sur la ferme de build ROS et la 2.14.0 a été retirée de l'index. Sans ce pin, apt répond
+# « Unable to locate package ros-humble-mavros-extras ». On remplace la source apt de ROS par le
+# snapshot du 2026-08-07 (mavros 2.14.0), signé par la clé « ROS Snapshot builder ».
+# À retirer quand ros-humble-mavros >= 2.15.2 réapparaît. Suivi : github.com/mavlink/mavros/issues/2293
+RUN set -o pipefail && curl -sSL --fail 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xAD19BAB3CBF125EA' \
+    | gpg --dearmor -o /usr/share/keyrings/ros-snapshots.gpg \
+ && printf 'Types: deb\nURIs: http://snapshots.ros.org/humble/2026-08-07/ubuntu\nSuites: jammy\nComponents: main\nSigned-By: /usr/share/keyrings/ros-snapshots.gpg\n' \
+    > /etc/apt/sources.list.d/ros2.sources
+
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-mavros-extras \
+    ros-${ROS_DISTRO}-mavlink \
+    ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+    geographiclib-tools \
+    && rm -rf /var/lib/apt/lists/* \
+    && /opt/ros/${ROS_DISTRO}/lib/mavros/install_geographiclib_datasets.sh
+
+WORKDIR /aeac

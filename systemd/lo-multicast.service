@@ -1,0 +1,13 @@
+# Active le multicast sur l'interface loopback. Nécessaire pour que les nodes ROS se découvrent
+# entre conteneurs quand ROS_LOCALHOST_ONLY=1 (DDS ne sort jamais de la machine).
+[Unit]
+Description=Multicast sur loopback (DDS local)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/ip link set lo multicast on
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

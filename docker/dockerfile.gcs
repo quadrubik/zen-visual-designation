@@ -1,0 +1,74 @@
+# Image du portable GCS et du poste de développement (compose/gcs.yml, dev.yml).
+# Ce qui diffère de dockerfile.drone : rviz2, rqt et X11 en plus, pour voir ce qui se passe.
+# Tout le reste est identique à dockerfile.drone, volontairement : une mission se simule ici avec la même base.
+# Même version de numpy que dockerfile.drone : celle d'Ubuntu 22.04 (python3-numpy, 1.21).
+ARG ROS_DISTRO=humble
+FROM ros:${ROS_DISTRO}-ros-base
+
+ARG ROS_DISTRO
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# PIN TEMPORAIRE (septembre 2026), comme dans la formation 3 : les binaires ros-humble-mavros 2.15.1
+# ont échoué sur la ferme de build ROS et la 2.14.0 a été retirée de l'index. Sans ce pin, apt répond
+# « Unable to locate package ros-humble-mavros-extras ». On remplace la source apt de ROS par le
+# snapshot du 2026-08-07 (mavros 2.14.0), signé par la clé « ROS Snapshot builder ».
+# À retirer quand ros-humble-mavros >= 2.15.2 réapparaît. Suivi : github.com/mavlink/mavros/issues/2293
+RUN set -o pipefail && curl -sSL --fail 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xAD19BAB3CBF125EA' \
+    | gpg --dearmor -o /usr/share/keyrings/ros-snapshots.gpg \
+ && printf 'Types: deb\nURIs: http://snapshots.ros.org/humble/2026-08-07/ubuntu\nSuites: jammy\nComponents: main\nSigned-By: /usr/share/keyrings/ros-snapshots.gpg\n' \
+    > /etc/apt/sources.list.d/ros2.sources
+
+# Outils de build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    python3-colcon-common-extensions \
+    && rm -rf /var/lib/apt/lists/*
+
+# mavros (pour les messages et services mavros_msgs dans les nodes) et ses données géographiques
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-mavros-extras \
+    ros-${ROS_DISTRO}-mavlink \
+    geographiclib-tools \
+    && rm -rf /var/lib/apt/lists/* \
+    && /opt/ros/${ROS_DISTRO}/lib/mavros/install_geographiclib_datasets.sh
+
+# DDS local (Cyclone) ; Zenoh fait le pont entre machines dans son propre conteneur
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+    ros-${ROS_DISTRO}-tf-transformations \
+    ros-${ROS_DISTRO}-zed-msgs \
+    iputils-ping \
+    iproute2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python : numpy et geopy viennent d'apt, pas de pip, pour rester alignés entre images
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-numpy \
+    python3-geopy \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ce que le drone n'a pas : visualisation
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-rviz2 \
+    ros-${ROS_DISTRO}-rqt \
+    ros-${ROS_DISTRO}-rqt-common-plugins \
+    ros-${ROS_DISTRO}-image-transport \
+    ros-${ROS_DISTRO}-compressed-image-transport \
+    x11-apps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Shell sourcé automatiquement : ROS 2, puis le workspace du dossier courant s'il est construit,
+# puis le daemon ros2. `make shell` donne donc un terminal où `ros2 topic list` marche sans rien taper.
+# Bash ne lit .bashrc que dans un shell interactif : les compose et les cibles make gardent leurs `source`.
+RUN printf '%s\n' \
+    '' \
+    '# Ajouté par le Dockerfile : ROS 2, le workspace courant, le daemon ros2.' \
+    'source /opt/ros/$ROS_DISTRO/setup.bash' \
+    '[ -f "$PWD/install/setup.bash" ] && source "$PWD/install/setup.bash"' \
+    'ros2 daemon start > /dev/null 2>&1' \
+    >> /root/.bashrc
+
+WORKDIR /aeac
