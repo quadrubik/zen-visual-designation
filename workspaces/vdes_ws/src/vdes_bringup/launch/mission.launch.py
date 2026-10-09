@@ -30,14 +30,22 @@ def generate_launch_description():
         parameters=[f'{CONFIG_DIR}/vdes.yaml'],
     )
 
+    gimbal_node = Node(
+            package="vdes_nodes",
+            executable="py_gimbal_simulation",
+            name="gimbal_simulation",
+            parameters=[f'{CONFIG_DIR}/vdes.yaml'],
+        )
+
     camera_node = Node(
             package="vdes_nodes",
             executable="py_camera_simulation",
-            name="camera_simulator",
+            name="camera_simulation",
             parameters=[f'{CONFIG_DIR}/vdes.yaml'],
     )
 
     ld.add_action(target_node)
+    ld.add_action(gimbal_node)
     ld.add_action(camera_node)
 
     ld.add_action(sim)

@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'py_target_generation = vdes_nodes.target_generation:main',
             'py_camera_simulation = vdes_nodes.camera_simulation:main',
+            'py_gimbal_simulation = vdes_nodes.gimbal_simulation:main',
         ],
     },
 )
