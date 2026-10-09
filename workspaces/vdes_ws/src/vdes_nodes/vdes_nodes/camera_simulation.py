@@ -4,7 +4,9 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 
-from geometry_msgs.msg import Point, PoseStamped
+from tf2_ros import TransformBroadcaster
+
+from geometry_msgs.msg import Point, PoseStamped, TransformStamped
 from mavros_msgs.srv import MessageInterval
 
 class CameraSimulation(Node):
@@ -21,12 +23,11 @@ class CameraSimulation(Node):
 
     def set_up_parameters(self):
         # Focal length of the camera
-        self.declare_parameter('focal_length', 2.0)
-        self.focal_length = self.get_parameter('focal_length').value
+        self.focal_length = self.declare_parameter('focal_length', 2.0).value
 
     def set_up_topics(self):
         # Get information about targets positions
-        self.target_sub = self.create_subscription(PointList, 'get_targets', self.camera_timer_callback, 10)
+        self.target_sub = self.create_subscription(PointList, 'get_targets', self.target_callback, 10)
 
         # Client to ask mavros for message initiation
         self.msg_interval_client = self.create_client(MessageInterval, '/mavros/set_message_interval')
@@ -38,6 +39,9 @@ class CameraSimulation(Node):
                                             history=QoSHistoryPolicy.KEEP_LAST,
                                             depth=8)
         self.pos_sub = self.create_subscription(PoseStamped, '/mavros/local_position/pose', self.pos_callback, qos_profile_BE)
+
+        # Broadcaster de transformation
+        self.tf_broadcaster = TransformBroadcaster(self)
 
     def set_up_messages(self):
         self.request_message(32, 10.0)
@@ -58,16 +62,32 @@ class CameraSimulation(Node):
             self.get_logger().warn(f"Message refusé (result={response.result})")
 
     def set_up_timers(self):
-        #self.camera_time = self.create_timer(0.2, self.camera_timer_callback)
+        self.camera_time = self.create_timer(0.2, self.camera_timer_callback)
         pass
 
-    def camera_timer_callback(self, msg):
-        self.get_logger().info(f"Received targets : {msg}")
+    def camera_timer_callback(self):
+        
+        pass
 
+    def target_callback(self, msg):
+        #self.get_logger().info(f"Received targets : {msg}")
+        pass
+    
     def pos_callback(self, msg):
         self.drone_pos = msg
 
-        # Calculate rotation matrixes
+        tf = TransformStamped()
+
+        tf.header.stamp = self.drone_pos.header.stamp
+        tf.header.frame_id = 'map'
+        tf.child_frame_id = 'drone'
+
+        tf.transform.translation.x = self.drone_pos.pose.position.x
+        tf.transform.translation.y = self.drone_pos.pose.position.y
+        tf.transform.translation.z = self.drone_pos.pose.position.z
+        tf.transform.rotation = self.drone_pos.pose.orientation
+
+        self.tf_broadcaster.sendTransform(tf)
         
 
 def main(args=None):
