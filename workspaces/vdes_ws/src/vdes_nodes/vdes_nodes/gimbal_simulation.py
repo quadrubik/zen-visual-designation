@@ -55,7 +55,7 @@ class GimbalSimulation(Node):
         self.rc_channel_x = self.declare_parameter('rc_channel_x', 5).value
         self.rc_channel_y = self.declare_parameter('rc_channel_y', 6).value
 
-        self.rc_deadzone = self.declare_parameter('rc_deadzone', 15).value
+        self.rc_deadzone = self.declare_parameter('rc_deadzone', 50).value
 
         # Variables non paramétrées
         self.channels = []
@@ -104,7 +104,8 @@ class GimbalSimulation(Node):
 
     def update(self):
         # Check if no rc input received in the last second
-        if (self.get_clock().now() - self.last_rc_received).nanoseconds > 1e9:
+        if (self.last_rc_received is None or
+            (self.get_clock().now() - self.last_rc_received).nanoseconds > 1e9):
             return
         
         x_value = self.channels[self.rc_channel_x]
