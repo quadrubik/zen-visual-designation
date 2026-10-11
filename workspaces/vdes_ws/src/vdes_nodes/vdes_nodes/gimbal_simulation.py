@@ -123,14 +123,18 @@ class GimbalSimulation(Node):
         x_value = self.rotation_speed * x_value * 2/(PWM_HIGH-PWM_LOW)
         y_value = self.rotation_speed * y_value * 2/(PWM_HIGH-PWM_LOW)
 
-        self.yaw   += x_value
+        # Signe moins (-) car mouvement à droite du joystick positif 
+        #mais rotation à droite = yaw négatif en FLU.
+        self.yaw   -= x_value
         self.pitch += y_value
+
+        #self.get_logger().info(f'Gimbal position (yaw: {self.yaw} pitch:{self.pitch})')
 
     def publish_broadcast(self):
         tf = TransformStamped()
 
         tf.header.stamp = self.get_clock().now().to_msg()
-        tf.header.frame_id = 'drone'
+        tf.header.frame_id = 'base_link'
         tf.child_frame_id = 'gimbal'
 
         tf.transform.translation.x = self.x
