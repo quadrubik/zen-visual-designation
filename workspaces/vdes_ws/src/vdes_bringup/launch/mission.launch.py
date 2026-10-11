@@ -35,7 +35,7 @@ def generate_launch_description():
             executable="py_gimbal_simulation",
             name="gimbal_simulation",
             parameters=[f'{CONFIG_DIR}/vdes.yaml'],
-        )
+    )
 
     camera_node = Node(
             package="vdes_nodes",

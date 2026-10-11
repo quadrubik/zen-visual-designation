@@ -12,6 +12,8 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PointList.msg"
+  "msg/FrameView.msg"
+  "msg/PointObservation.msg"
   DEPENDENCIES geometry_msgs
 )
 
